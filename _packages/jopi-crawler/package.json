@@ -12,7 +12,8 @@
   "main": "src/index.ts",
   "scripts": {
     "tsc-noEmit": "tsc --noemit",
-    "npm-publish": "npm publish --access public"
+    "npm-publish": "npm publish --access public",
+    "bun link": "bun link"
   },
   "devDependencies": {
     "@types/bun": "^1.2.13"

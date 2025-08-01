@@ -527,7 +527,23 @@ export class WebSiteCrawler {
         let retryCount = 0;
 
         while (true) {
-            let res = await fetch(mappingResult.url);
+            let res = await fetch(mappingResult.url, {
+                // > This option allows avoiding SSL certificate check.
+
+                // @ts-ignore
+                rejectUnauthorized: false,
+
+                requestCert: false,
+
+                tls: {
+                    rejectUnauthorized: false,
+                    checkServerIdentity: () => { return undefined }
+                },
+
+                // Allow avoiding automatic redirections.
+                // @ts-ignore
+                redirect: 'manual',
+            });
 
             if (res.status !== 200) {
                 if (res.status >= 300 && res.status < 400) {
