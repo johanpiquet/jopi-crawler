@@ -1,0 +1,8 @@
+{
+  "workspaces": [
+    "_packages/*"
+  ],
+  "scripts": {
+    "bun-install": "bun install"
+  }
+}

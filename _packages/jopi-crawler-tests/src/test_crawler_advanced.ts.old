@@ -1,0 +1,155 @@
+import {UrlMapping, WebSiteCrawler } from "jopi-crawler";
+
+import * as path from "node:path";
+
+// Where to store our flat website.
+const outDir = "../flat-website";
+
+// Where is my WordPress server.
+const myLocalWordpressUrl = "https://my-jopi-web-site.jopi:8890";
+// Where is my Docusaurus server.
+const myDocusaurusUrl = "http://localhost:3001";
+
+// Will wake up my docusaurus server.
+// AutomaticStartStop allows starting a server on the first request.
+// And shut it down if he isn't requested anymore, this after a delay of n-minutes.
+// Also, it automatically shuts down the server when our application exits (it's what we went here)
+const wakeUpDocServer = new AutomaticStartStop({
+    // It's only for logs.
+    name: "Doc server",
+
+    async onStart(data: any) {
+        // Where is my server script.
+        const workingDir = path.join(process.cwd(), "..", "..", "__MyProjectsDoc");
+        // Build the doc.
+        await Bun.spawn(["bun", "run", "build"], {cwd: workingDir}).exited;
+        // Serve it
+        const myProcess = Bun.spawn(["bun", "run", "serve"], {cwd: workingDir});
+        // Allow onStop to get the reference.
+        data.startProcess = myProcess;
+    },
+
+    async onStop(data: any) {
+        // Get the reference to myProcess.
+        const myProcess = data.startProcess as Bun.Subprocess;
+        // Kill the process.
+        myProcess.kill();
+    }
+});
+
+async function launchCrawler() {
+    // urlMapping allows the crawler to know what site he must crawl.
+    const urlMapping = new UrlMapping(
+        // If the url is not resolved, then must default to this.
+        myLocalWordpressUrl
+    );
+
+    // Map url starting with /documentation to my docusaurus server.
+    // Here we add a function which is called every time one of this url is used.
+    // It allows starting our server:
+    // - The first time, wakeUpDocServer.start() start-up our server.
+    // - The other times, wakeUpDocServer.start() only say that this server remains useful.
+    urlMapping.mapURL("/docs", myDocusaurusUrl, () => wakeUpDocServer.start());
+    urlMapping.mapURL("/blog", myDocusaurusUrl, () => wakeUpDocServer.start());
+    urlMapping.mapURL("/assets", myDocusaurusUrl, () => wakeUpDocServer.start());
+    urlMapping.mapURL("/img", myDocusaurusUrl, () => wakeUpDocServer.start());
+
+    // Create the crawler instance.
+    const crawler = new WebSiteCrawler(myLocalWordpressUrl, {
+        // Where to store our flat website.
+        outputDir: outDir,
+
+        // Allow seeing what it's doing.
+        onUrl(url: string) {
+            console.log("Processing url:", url);
+        },
+
+        // Allow removing /index.html from the links.
+        // If the URL is http://127.0.0.1/my/dir/index.html,
+        // then transform it to http://127.0.0.1/my/dir/.
+        //
+        transformUrl(url: string) {
+            if (url==="index.html") return "/";
+            if ((url==="index.html") || url.endsWith("/index.html")) return url.slice(0, -10);
+            return url;
+        },
+
+        // onHtml allow analyzing and altering the HTML.
+        // Here we add an "Added to cache" message.
+        //
+        onHtml(html: string): string {
+            return html + "<!-- Added to cache at " + new Date().toISOString() + " -->";
+        },
+
+        // Avoid crawling again if already crawled.
+        // Here only the important pages will be crawled again.
+        canIgnoreIfAlreadyCrawled: (url, infos) => {
+            if (!process.env.production) {
+                return false;
+            }
+
+            // Don't scan again if it's less than one day.
+            if ((Date.now() - infos.addToCacheDate)<ONE_DAY) return true;
+
+            // It's my blog entry page? Then scan again.
+            if ((url==="/blog") || url.startsWith("/blog/")) {
+                // Will crawl the blog page.
+                // Allow checking blog new entries which aren't in the cache.
+                return false;
+            }
+
+            // Don't scan again if it's another page.
+            return true;
+        },
+
+        // I don't when to scan the url starting with /wp-json.
+        forbiddenUrls: ["/wp-json"],
+
+        // Url mapper. Allow knowing where to find our page and resources to crawl.
+        urlMapping: urlMapping,
+
+        // Allow adding url which are forgotten.
+        //
+        // Why forgotten ?
+        // - They come from a JavaScript.
+        // - They come from a complex CSS.
+        //
+        scanThisUrls: [
+            "/wp-content/uploads/2022/04/lottie-home-lottie1.json",
+            "/wp-content/uploads/2022/04/lottie-home-lottie2.json",
+            "/wp-content/uploads/2022/04/lottie-home-lottie3.json",
+            "/wp-content/uploads/2022/04/lottie-body-bg.webp",
+
+            "/wp-content/themes/betheme/fonts/fontawesome/fa-brands-400.woff2",
+            "/wp-content/themes/betheme/fonts/fontawesome/fa-brands-400.woff",
+            "/wp-content/themes/betheme/fonts/fontawesome/fa-brands-400.ttf",
+
+            // Adding these urls is required for canIgnoreIfAlreadyCrawled.
+            // Why? Because if pages leading to /blog or /documentation
+            // are not crawled, then he will never try to crawl again our two pages.
+            //
+            "/blog",
+            "/blog/",
+            "/docs/Jopi%20Rewrite/Intro"
+        ],
+
+        // I have some raw url inside my website. They must be converted.
+        // It's what rewriteThisUrls allow: he converts as this urls
+        // as if it was part of our website url.
+        rewriteThisUrls: [
+            "https://johan-piquet.fr"
+        ]
+    });
+
+    await crawler.start()
+
+    console.log("Finished crawling !");
+}
+
+// startApplication allows automatically stopping
+// things when application exit or on [Ctr]+[C].
+// Here we need to use it because we have AutomaticStartStop.
+//
+startApplication(launchCrawler);
+
+console.log("Crawl finished");
