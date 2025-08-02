@@ -45,11 +45,6 @@ export interface WebSiteCrawlerOptions {
     cache?: CrawlerCache;
 
     /**
-     * Is called when an URL is found.
-     */
-    onUrl?: (url: string, originalUrl: string, requestedByUrl: string, urlCount: number) => void;
-
-    /**
      * If defined, then allow rewriting an url found by the HTML analyzer.
      *
      * @param url
@@ -61,9 +56,16 @@ export interface WebSiteCrawlerOptions {
 
     /**
      * Is called when an URL is found and the content is HTML.
-     * Allow altering the final HTML.
+     * Allow altering the HTML which will be processed or post-process URL.
      */
-    onHtml?: (html: string, url: string, sourceUrl: string) => string|Promise<string>;
+    rewriteHtmlBeforeProcessing?: (html: string, url: string, sourceUrl: string) => string|Promise<string>;
+
+    /**
+     * Is called when an URL is found and the content is HTML.
+     * Allow altering the final HTML.
+     * Is called after URL extraction.
+     */
+    rewriteHtmlBeforeStoring?: (html: string, url: string, sourceUrl: string) => string|Promise<string>;
 
     /**
      * Allow ignoring an entry if already crawled.
@@ -145,6 +147,25 @@ export interface WebSiteCrawlerOptions {
      * Allows knowing if this url can be downloaded.
      */
     canDownload?(url: string, isResource: boolean): boolean;
+
+    /**
+     * Is called when a URL is processed.
+     * Allow building stats.
+     */
+    onUrlProcessed?(infos: UrlProcessedInfos): void;
+}
+
+export interface UrlProcessedInfos {
+    sourceUrl: string;
+    urlCount: number;
+    localUrl: string;
+    transformedUrl: string;
+    requestedByUrl: string;
+    state: ProcessUrlResult;
+    retryCount: number;
+
+    date: number;
+    elapsed: number;
 }
 
 export enum ProcessUrlResult {

@@ -335,25 +335,44 @@ export class WebSiteCrawler {
         return gExtensionForResourceType.includes(ext);
     }
 
-    private async processUrl(url: string): Promise<ProcessUrlResult> {
-        const partialUrl = url.substring(this.newWebSite_basePath.length);
+    private async processUrl(sourceUrl: string): Promise<ProcessUrlResult> {
+        const sendSignal = (state: ProcessUrlResult) => {
+            if (this.options.onUrlProcessed) {
+                const date = Date.now();
+                const elapsed = date - now;
+
+                this.options.onUrlProcessed({
+                    sourceUrl, requestedByUrl,
+                    state, retryCount,
+                    transformedUrl,
+                    localUrl,
+                    urlCount: this.urlCount,
+                    date, elapsed
+                });
+            }
+
+            return state;
+        }
+
+        const now = Date.now();
+        const partialUrl = sourceUrl.substring(this.newWebSite_basePath.length);
         const requestedByUrl = this.currentGroup.url;
 
         const mappingResult = this.options.urlMapping!.resolveURL(partialUrl);
         if (!mappingResult) return ProcessUrlResult.IGNORED;
 
-        let transformedUrl = url;
+        let transformedUrl = sourceUrl;
 
         if (this.cache) {
-            transformedUrl = this.transformFoundUrl(url, false);
+            transformedUrl = this.transformFoundUrl(sourceUrl, false);
         }
 
         if (this.cache && this.options.canIgnoreIfAlreadyCrawled) {
             const isInCache = await this.cache.hasInCache(transformedUrl, requestedByUrl)
 
             if (isInCache && this.options.canIgnoreIfAlreadyCrawled(
-                url.substring(this.newWebSite_basePath.length), {sourceUrl: mappingResult.url})) {
-                return ProcessUrlResult.IGNORED;
+                sourceUrl.substring(this.newWebSite_basePath.length), {sourceUrl: mappingResult.url})) {
+                return sendSignal(ProcessUrlResult.IGNORED);
             }
         }
 
@@ -361,14 +380,8 @@ export class WebSiteCrawler {
             await mappingResult.wakeUpServer();
         }
 
-        if (this.options.onUrl) {
-            this.options.onUrl(
-                url.substring(this.newWebSite_basePath.length),
-                mappingResult.url,
-                this.currentGroup.url,
-                this.urlCount++
-            );
-        }
+        const localUrl = sourceUrl.substring(this.newWebSite_basePath.length);
+        this.urlCount++;
 
         if (this.options.pauseDuration_ms) {
             await tick(this.options.pauseDuration_ms);
@@ -400,12 +413,12 @@ export class WebSiteCrawler {
                 if (res.status >= 300 && res.status < 400) {
                     const location = res.headers.get("Location");
                     if (location) this.pushUrl(location);
-                    return ProcessUrlResult.REDIRECTED;
+                    return sendSignal(ProcessUrlResult.REDIRECTED);
                 } else {
                     let canContinue = false;
 
                     if (this.options.onInvalidResponseCodeFound) {
-                        let what = this.options.onInvalidResponseCodeFound(url, retryCount, res);
+                        let what = this.options.onInvalidResponseCodeFound(sourceUrl, retryCount, res);
                         if (what instanceof Promise) what = await what;
                         canContinue = what;
                     } else if (retryCount<3) {
@@ -415,8 +428,8 @@ export class WebSiteCrawler {
                     }
 
                     if (!canContinue) {
-                        console.log(TERM.colorize(TERM.B_RED, `!!! Can't! fetch url: ${url} (${res.status})`));
-                        return ProcessUrlResult.ERROR;
+                        console.log(TERM.colorize(TERM.B_RED, `!!! Can't! fetch url: ${sourceUrl} (${res.status})`));
+                        return sendSignal(ProcessUrlResult.ERROR);
                     }
 
                     retryCount++;
@@ -427,18 +440,25 @@ export class WebSiteCrawler {
             }
 
             if (retryCount!==0) {
-                console.log(TERM.colorize(TERM.C_GREEN, "Url is now ok after ", TERM.C_RED, retryCount.toString(), " retry", TERM.C_BLUE, url));
+                console.log(TERM.colorize(TERM.C_GREEN, "Url is now ok after ", TERM.C_RED, retryCount.toString(), " retry", TERM.C_BLUE, sourceUrl));
             }
 
             const contentType = res.headers.get("content-type");
 
             if (contentType) {
                 if (contentType.startsWith("text/html")) {
-                    const content = await res.text();
-                    let html = await this.processHtml(content);
+                    let html = await res.text();
 
-                    if (this.options.onHtml) {
-                        let res = this.options.onHtml(html, url.substring(this.newWebSite_basePath.length), mappingResult.url);
+                    if (this.options.rewriteHtmlBeforeProcessing) {
+                        let res = this.options.rewriteHtmlBeforeProcessing(html, sourceUrl.substring(this.newWebSite_basePath.length), mappingResult.url);
+                        if (res instanceof Promise) res = await res;
+                        html = res;
+                    }
+
+                    html = await this.processHtml(html);
+
+                    if (this.options.rewriteHtmlBeforeStoring) {
+                        let res = this.options.rewriteHtmlBeforeStoring(html, sourceUrl.substring(this.newWebSite_basePath.length), mappingResult.url);
                         if (res instanceof Promise) res = await res;
                         html = res;
                     }
@@ -450,7 +470,7 @@ export class WebSiteCrawler {
 
                     if (cssUrls.length) {
                         cssUrls.forEach(u => {
-                            const cleanedUrl = this.cleanUpCssUrl(u, url);
+                            const cleanedUrl = this.cleanUpCssUrl(u, sourceUrl);
                             if (cleanedUrl) this.pushUrl(cleanedUrl);
                         });
                     }
@@ -463,7 +483,7 @@ export class WebSiteCrawler {
                 await this.cache.addToCache(transformedUrl, res, requestedByUrl);
             }
 
-            return ProcessUrlResult.OK;
+            return sendSignal(ProcessUrlResult.OK);
         }
     }
 
@@ -477,7 +497,6 @@ export class WebSiteCrawler {
         // Will emit calls to addUrl for each url found.
         //
         html = this.getRewriter().transform(html);
-
         return html;
     }
 
