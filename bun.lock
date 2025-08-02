@@ -41,7 +41,11 @@
 
     "jopi-crawler-tests": ["jopi-crawler-tests@workspace:_packages/jopi-crawler-tests"],
 
-    "jopi-node-space": ["jopi-node-space@0.0.2", "", {}, "sha512-bzB0oMqK+gYzlmwvkE+z6O9eUdYc/iHZmDY4Cu8zqxWB2nQTMh8rUgT8dofTfdDEf/tTiuhXiXo/xZ4KTK+sZQ=="],
+    "jopi-node-space": ["jopi-node-space@0.0.5", "", { "dependencies": { "mime-types": "^3.0.1" } }, "sha512-6uktnVtF8iEPbRmJ5iAiQPdM765fnfwPV3JctfCNyp4/kmnIUKV2C0Y3IA27QlYpxUuc+tO77ZKQ7h4OfjPT0Q=="],
+
+    "mime-db": ["mime-db@1.54.0", "", {}, "sha512-aU5EJuIN2WDemCcAp2vFBfp/m4EAhWJnUNSSw0ixs7/kXbd6Pg64EmwJkNdFhB8aWt1sH2CTXrLxo/iAGV3oPQ=="],
+
+    "mime-types": ["mime-types@3.0.1", "", { "dependencies": { "mime-db": "^1.54.0" } }, "sha512-xRc4oEhT6eaBpU1XF7AjpOFD+xQmXNB5OVKwp4tqCuBpHLS/ZbBDrc07mYTDqVMg6PfxUjjNp85O6Cd2Z/5HWA=="],
 
     "rou3": ["rou3@0.7.3", "", {}, "sha512-KKenF/hB2iIhS1ohj226LT+/8uKCBpSMqeS4V1UPN9vad99uLoyIhrULRRB1skaB40LQHcBlSsAi3sT8MaoDDQ=="],
 

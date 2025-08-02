@@ -1,166 +1,16 @@
-import {WebSiteMirrorCache} from "./webSiteMirrorCache.ts";
+import {DirectFileCache} from "./directFileCache.ts";
 import {UrlMapping} from "./urlMapping.ts";
-import "jopi-node-space";
 
 const TERM = NodeSpace.term;
 
 // @ts-ignore no ts definition
 import parseCssUrls from "css-url-parser";
 import {applyDefaults, tick} from "./utils.ts";
-
-interface CrawlerTransformUrlInfos {
-    /**
-     * The local url of the page from which this url has been found.
-     */
-    comeFromPage: string;
-
-    /**
-     * The instance of the crawler.
-     */
-    crawler: WebSiteCrawler;
-
-    /**
-     * If true, this mean we need a final url which is ok with
-     * opening the page directly from the file-system.
-     */
-    requireRelocatableUrl: boolean;
-}
-
-interface CrawlerCanIgnoreIfAlreadyCrawled {
-    /**
-     * At which date the url has been added to the cache.
-     */
-    addToCacheDate: number;
-
-    /**
-     * The url which will be fetched.
-     */
-    sourceUrl: string;
-}
-
-export interface WebSiteCrawlerOptions {
-    /**
-     * Exclude all url that don't start with this prefix.
-     * The default base is the basePath.
-     */
-    requiredPrefix?: string;
-
-    /**
-     * If set, then will save the page inside this directory.
-     * Warning: will replace the cache value.
-     */
-    outputDir?: string;
-
-    /**
-     * Is called when an URL is found.
-     */
-    onUrl?: (url: string, sourceUrl: string) => void;
-
-    /**
-     * If defined, then allow rewriting an url found by the HTML analyzer.
-     * 
-     * @param url
-     *      The url found, converted to local site url.
-     * @param infos
-     *      Information about the context.
-     */
-    transformUrl?(url: string, infos: CrawlerTransformUrlInfos): string;
-
-    /**
-     * Is called when an URL is found and the content is HTML.
-     * Allow altering the final HTML.
-     */
-    onHtml?: (html: string, url: string, sourceUrl: string) => string|Promise<string>;
-
-    /**
-     * Allow ignoring an entry if already crawled.
-     * The function takes and url (without a base path) and
-     * returns true if the page can be ignored, or false if it must crawl.
-     */
-    canIgnoreIfAlreadyCrawled?: (url: string, infos: CrawlerCanIgnoreIfAlreadyCrawled) => boolean;
-
-    /**
-     * Alter the final HTML to make the URL relocatable.
-     * This means we can copy and paste the website without attachement to the website name.
-     * Default is true.
-     */
-    requireRelocatableUrl?: boolean;
-
-    /**
-     * A list of url which must be replaced.
-     * If one of these urls is found as an url prefix,
-     * then replace it by the baseUrl.
-     */
-    rewriteThisUrls?: string[];
-
-    /**
-     * A list of forbidden url which must not be crawled.
-     * Ex: ["/wp-json"]
-     */
-    forbiddenUrls?: string[];
-
-    /**
-     * A list of urls to scan.
-     * Allow including forgotten url (which mainly come from CSS or JavaScript).
-     * Ex: ["/my-style.css"].
-     */
-    scanThisUrls?: string[];
-
-    /**
-     * A mapper that allows knowing where to get data.
-     * Allow things like:
-     *      "/documentation/docA" --> "https://my-docsite.local/documentaiton/docA".
-     *      "/blog/my-blog-entry" --> "https://my-blog.local/my-blog-entry".
-     */
-    urlMapping?: UrlMapping;
-
-    /**
-     * The url of the new website, if downloading.
-     */
-    newWebSiteUrl?: string;
-
-    /**
-     * Allow the crawler to do a pause between two call to the server.
-     * The default value is 0: no pause.
-     */
-    pauseDuration_ms?: number;
-
-    /**
-     * Is called once a page is entirely downloaded.
-     * Will allow stopping the downloading by returning false.
-     */
-    onPageFullyDownloaded?: (url: string, state: ProcessUrlResult) => void|undefined|boolean|Promise<boolean>;
-
-    /**
-     * Is called when a resource is downloaded.
-     */
-    onResourceDownloaded?(url: string, state: ProcessUrlResult): void;
-
-    /**
-     * Allow sorting (and filtering) the pages we must download.
-     * The main use case is to prioritize some pages when there is a large breadcrumb/pager/menu.
-     */
-    sortPagesToDownload?(allUrls: UrlSortTools): void;
-
-    /**
-     * Is called when a resource returns a code which isn't 200 (ok) or a redirect.
-     * Return true if retry to download, false to stop.
-     */
-    onInvalidResponseCodeFound?: (url: string, retryCount: number, response: Response) => boolean|Promise<boolean>;
-
-    /**
-     * Allows knowing if this url can be downloaded.
-     */
-    canDownload?(url: string, isResource: boolean): boolean;
-}
+import {type CrawlerCache, ProcessUrlResult, UrlSortTools, type WebSiteCrawlerOptions} from "./common";
 
 interface UrlGroup {
     url: string;
     stack?: string[];
-}
-
-export enum ProcessUrlResult {
-    OK = "ok", REDIRECTED = "redirected", ERROR = "error", IGNORED = "ignored"
 }
 
 export class WebSiteCrawler {
@@ -170,16 +20,19 @@ export class WebSiteCrawler {
     private readonly newWebSite_lcBasePath: string;
     private readonly newWebSite_urlInfos: URL;
 
+    private readonly requiredPrefix: string;
     private readonly requiredPrefix2: string;
 
     private rewriter?: HTMLRewriter;
     private isStarted = false;
 
     private readonly options: WebSiteCrawlerOptions;
-    private readonly fileSystemWriter?: WebSiteMirrorCache;
+    private readonly cache?: CrawlerCache;
 
     private currentGroup: UrlGroup = {url:"", stack:[]};
     private readonly groupStack: UrlGroup[] = [];
+
+    private urlCount: number = 1;
 
     /**
      * Create a new crawler instance.
@@ -203,17 +56,8 @@ export class WebSiteCrawler {
         const urlInfos = new URL(newWebSiteUrl);
         this.newWebSite_urlInfos = urlInfos;
 
-        // Required prefix allows excluding url which are not from our website.
-        // It also can be used to exclude a portion of the website.
-        //
-        if (options.requiredPrefix) {
-            options.requiredPrefix = options.requiredPrefix.toLowerCase();
-            let idx = options.requiredPrefix.indexOf("://");
-            this.requiredPrefix2 = idx === -1 ? options.requiredPrefix : options.requiredPrefix.substring(0, idx + 1);
-        } else {
-            this.options.requiredPrefix = newWebSiteUrl;
-            this.requiredPrefix2 = "//" + urlInfos.hostname;
-        }
+        this.requiredPrefix = urlInfos.origin + "/";
+        this.requiredPrefix2 = "//" + urlInfos.hostname;
 
         let sourceWebSiteOrigin = new URL(sourceWebSite).origin;
 
@@ -226,9 +70,6 @@ export class WebSiteCrawler {
             }
         }
 
-        // For each url found, url mapping allows to know where we must take our page/resources.
-        // It allows combining two or three websites into one.
-        //
         if (!options.urlMapping) {
             options.urlMapping = new UrlMapping(sourceWebSite);
         } else {
@@ -243,8 +84,11 @@ export class WebSiteCrawler {
             })
         }
 
-        if (options.outputDir) {
-            this.fileSystemWriter = new WebSiteMirrorCache(options.outputDir);
+        if (options.cache) {
+            this.cache = options.cache;
+        }
+        else if (options.outputDir) {
+            this.cache = new DirectFileCache(options.outputDir);
         }
 
         if (options.forbiddenUrls) {
@@ -343,7 +187,7 @@ export class WebSiteCrawler {
             url = this.rewriteSourceSiteUrl(url);
         }
 
-        if (!url.toLowerCase().startsWith(this.options.requiredPrefix!)) {
+        if (!url.toLowerCase().startsWith(this.requiredPrefix)) {
             return null;
         }
 
@@ -493,24 +337,22 @@ export class WebSiteCrawler {
 
     private async processUrl(url: string): Promise<ProcessUrlResult> {
         const partialUrl = url.substring(this.newWebSite_basePath.length);
+        const requestedByUrl = this.currentGroup.url;
 
         const mappingResult = this.options.urlMapping!.resolveURL(partialUrl);
         if (!mappingResult) return ProcessUrlResult.IGNORED;
 
         let transformedUrl = url;
 
-        if (this.fileSystemWriter) {
+        if (this.cache) {
             transformedUrl = this.transformFoundUrl(url, false);
         }
 
-        if (this.fileSystemWriter && this.options.canIgnoreIfAlreadyCrawled) {
-            const infos = await this.fileSystemWriter.hasInCache(new URL(transformedUrl))
+        if (this.cache && this.options.canIgnoreIfAlreadyCrawled) {
+            const isInCache = await this.cache.hasInCache(transformedUrl, requestedByUrl)
 
-            if (infos && this.options.canIgnoreIfAlreadyCrawled(
-                url.substring(this.newWebSite_basePath.length), {
-                    addToCacheDate: infos.addedDate,
-                    sourceUrl: mappingResult.url
-                })) {
+            if (isInCache && this.options.canIgnoreIfAlreadyCrawled(
+                url.substring(this.newWebSite_basePath.length), {sourceUrl: mappingResult.url})) {
                 return ProcessUrlResult.IGNORED;
             }
         }
@@ -520,7 +362,12 @@ export class WebSiteCrawler {
         }
 
         if (this.options.onUrl) {
-            this.options.onUrl(url.substring(this.newWebSite_basePath.length), mappingResult.url);
+            this.options.onUrl(
+                url.substring(this.newWebSite_basePath.length),
+                mappingResult.url,
+                this.currentGroup.url,
+                this.urlCount++
+            );
         }
 
         if (this.options.pauseDuration_ms) {
@@ -583,7 +430,7 @@ export class WebSiteCrawler {
                 console.log(TERM.colorize(TERM.C_GREEN, "Url is now ok after ", TERM.C_RED, retryCount.toString(), " retry", TERM.C_BLUE, url));
             }
 
-            const contentType = res.headers.get("Content-Type");
+            const contentType = res.headers.get("content-type");
 
             if (contentType) {
                 if (contentType.startsWith("text/html")) {
@@ -612,8 +459,8 @@ export class WebSiteCrawler {
                 }
             }
 
-            if (this.fileSystemWriter) {
-                await this.fileSystemWriter.addToCache(new URL(transformedUrl), res);
+            if (this.cache) {
+                await this.cache.addToCache(transformedUrl, res, requestedByUrl);
             }
 
             return ProcessUrlResult.OK;
@@ -816,55 +663,3 @@ const gExtensionForResourceType = [
     ".css", ".js", ".jpg", ".png", ".jpeg", ".gif",
     ".woff", ".woff2", ".ttf", ".txt", ".avif"
 ];
-
-
-export class UrlSortTools {
-    constructor(allUrls: string[]) {
-        this.allUrl = allUrls;
-    }
-
-    /**
-     * Remove the urls for which the filter response true
-     * and return an array with the extracted urls.
-     */
-    remove(filter: (url: string) => boolean): UrlSortTools {
-        const removed: string[] = [];
-        const others: string[] = [];
-
-        this.allUrl.forEach(url => {
-            if (filter(url)) removed.push(url);
-             else others.push(url);
-        });
-
-        this.removed = removed;
-        this.allUrl = others;
-
-        return this;
-    }
-
-    sortAsc(): UrlSortTools {
-        this.allUrl = this.allUrl.sort();
-        return this;
-    }
-
-    addRemovedBefore(): UrlSortTools {
-        if (!this.removed) return this;
-        this.allUrl = [...this.removed, ...this.allUrl];
-        this.removed = undefined;
-        return this;
-    }
-
-    addRemovedAfter(): UrlSortTools {
-        if (!this.removed) return this;
-        this.allUrl = [...this.allUrl, ...this.removed];
-        this.removed = undefined;
-        return this;
-    }
-
-    result(): string[] {
-        return this.allUrl;
-    }
-
-    removed?: string[];
-    allUrl: string[];
-}
