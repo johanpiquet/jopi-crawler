@@ -1,5 +1,8 @@
 import {WebSiteMirrorCache} from "./webSiteMirrorCache.ts";
-import  {UrlMapping} from "./urlMapping.ts";
+import {UrlMapping} from "./urlMapping.ts";
+import "jopi-node-space";
+
+const TERM = NodeSpace.term;
 
 // @ts-ignore no ts definition
 import parseCssUrls from "css-url-parser";
@@ -527,6 +530,7 @@ export class WebSiteCrawler {
         let retryCount = 0;
 
         while (true) {
+            // noinspection JSUnusedGlobalSymbols for checkServerIdentity
             let res = await fetch(mappingResult.url, {
                 // > This option allows avoiding SSL certificate check.
 
@@ -564,8 +568,7 @@ export class WebSiteCrawler {
                     }
 
                     if (!canContinue) {
-                        //TODO: use nodeSpace.termColor.GREEN
-                        console.error(`!!! Can'! fetch url: ${url} (${res.status})`);
+                        console.log(TERM.colorize(TERM.B_RED, `!!! Can't! fetch url: ${url} (${res.status})`));
                         return ProcessUrlResult.ERROR;
                     }
 
@@ -577,7 +580,7 @@ export class WebSiteCrawler {
             }
 
             if (retryCount!==0) {
-                console.warn("--> Url is now ok: " + url);
+                console.log(TERM.colorize(TERM.C_GREEN, "Url is now ok after ", TERM.C_RED, retryCount.toString(), " retry", TERM.C_BLUE, url));
             }
 
             const contentType = res.headers.get("Content-Type");

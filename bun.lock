@@ -4,9 +4,10 @@
     "": {},
     "_packages/jopi-crawler": {
       "name": "jopi-crawler",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "dependencies": {
         "css-url-parser": "^1.1.4",
+        "jopi-node-space": "latest",
         "rou3": "latest",
       },
       "devDependencies": {
@@ -39,6 +40,8 @@
     "jopi-crawler": ["jopi-crawler@workspace:_packages/jopi-crawler"],
 
     "jopi-crawler-tests": ["jopi-crawler-tests@workspace:_packages/jopi-crawler-tests"],
+
+    "jopi-node-space": ["jopi-node-space@0.0.2", "", {}, "sha512-bzB0oMqK+gYzlmwvkE+z6O9eUdYc/iHZmDY4Cu8zqxWB2nQTMh8rUgT8dofTfdDEf/tTiuhXiXo/xZ4KTK+sZQ=="],
 
     "rou3": ["rou3@0.7.3", "", {}, "sha512-KKenF/hB2iIhS1ohj226LT+/8uKCBpSMqeS4V1UPN9vad99uLoyIhrULRRB1skaB40LQHcBlSsAi3sT8MaoDDQ=="],
 

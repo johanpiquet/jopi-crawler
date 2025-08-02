@@ -1,6 +1,6 @@
 {
   "name": "jopi-crawler",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "license": "MIT",
   "homepage": "https://github.com/johanpiquet/jopi-crawler",
   "keywords": ["crawler", "downloader"],
@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "rou3": "latest",
-    "css-url-parser": "^1.1.4"
+    "css-url-parser": "^1.1.4",
+    "jopi-node-space": "latest"
   }
 }
