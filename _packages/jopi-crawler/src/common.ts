@@ -141,7 +141,7 @@ export interface WebSiteCrawlerOptions {
      * Is called when a resource returns a code which isn't 200 (ok) or a redirect.
      * Return true if retry to download, false to stop.
      */
-    onInvalidResponseCodeFound?: (url: string, retryCount: number, response: Response) => boolean|Promise<boolean>;
+    onInvalidResponseCodeFound?: (url: string, retryCount: number, response: CrawlerFetchResponse) => boolean|Promise<boolean>;
 
     /**
      * Allows knowing if this url can be downloaded.
@@ -153,6 +153,30 @@ export interface WebSiteCrawlerOptions {
      * Allow building stats.
      */
     onUrlProcessed?(infos: UrlProcessedInfos): void;
+
+    /**
+     * Is called when the crawling is finished.
+     * @param infos
+     */
+    onFinished?(infos: OnCrawlingFinishedInfos): void;
+
+    /**
+     * Allow replacing the fetch function with our own fetch.
+     */
+    doFetch?: CrawlerFetch;
+}
+
+export type CrawlerFetch = (crawler: WebSiteCrawler, url: string, referer: string) => Promise<CrawlerFetchResponse>;
+
+export interface CrawlerFetchResponse {
+    status: number;
+    headers: Headers;
+    body: ReadableStream<Uint8Array> | null;
+    text(): Promise<string>;
+}
+
+export interface OnCrawlingFinishedInfos {
+    remainingStack: string[]
 }
 
 export interface UrlProcessedInfos {

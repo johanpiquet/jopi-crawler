@@ -1,12 +1,13 @@
 import {DirectFileCache} from "./directFileCache.ts";
 import {UrlMapping} from "./urlMapping.ts";
 
-const TERM = NodeSpace.term;
-
 // @ts-ignore no ts definition
 import parseCssUrls from "css-url-parser";
 import {applyDefaults, tick} from "./utils.ts";
-import {type CrawlerCache, ProcessUrlResult, UrlSortTools, type WebSiteCrawlerOptions} from "./common";
+import {
+    type CrawlerCache, type CrawlerFetchResponse,
+    type OnCrawlingFinishedInfos, ProcessUrlResult, UrlSortTools, type WebSiteCrawlerOptions
+} from "./common.ts";
 
 interface UrlGroup {
     url: string;
@@ -42,7 +43,7 @@ export class WebSiteCrawler {
      * @param options
      *      Options for complex cases.
      */
-    constructor(sourceWebSite: string, options: WebSiteCrawlerOptions) {
+    constructor(sourceWebSite: string, options?: WebSiteCrawlerOptions) {
         options = applyDefaults(options, {
             requireRelocatableUrl: true,
         });
@@ -99,7 +100,7 @@ export class WebSiteCrawler {
     /**
      * Start the processing
      */
-    public async start(entryPoint?: string) {
+    public async start(entryPoint?: string): Promise<OnCrawlingFinishedInfos> {
         if (!entryPoint) {
             entryPoint = this.newWebSite_basePath;
         }
@@ -115,6 +116,16 @@ export class WebSiteCrawler {
         }
 
         await this.processStack();
+
+        const finishedInfos: OnCrawlingFinishedInfos = {
+            remainingStack: this.groupStack.map(g => g.url)
+        };
+
+        if (this.options.onFinished) {
+            this.options.onFinished(finishedInfos);
+        }
+
+        return finishedInfos;
     }
 
     public forbidUrlFrom(url: string) {
@@ -219,8 +230,6 @@ export class WebSiteCrawler {
         if (!this.currentGroup.stack) this.currentGroup.stack = [];
         this.currentGroup.stack.push(url);
 
-        //console.log(`Adding url: ${url} (stack ${this.currentGroup.url})`);
-
         return url;
     }
 
@@ -244,9 +253,6 @@ export class WebSiteCrawler {
      * Also, if it's CSS.
      */
     private async processGroup(group: UrlGroup): Promise<boolean> {
-        //if (group.stack) console.log("Processing group-n:", group.url);
-        //else console.log("Processing group-1:", group.url);
-
         this.currentGroup = group;
 
         // Process the group main url.
@@ -299,7 +305,6 @@ export class WebSiteCrawler {
 
                 for (let i = 0; i < resources.length; i++) {
                     const resUrl = resources[i];
-                    //console.log("Processing resource:", resUrl);
                     const resState = await this.processUrl(resUrl);
 
                     if (this.options.onResourceDownloaded) {
@@ -390,100 +395,118 @@ export class WebSiteCrawler {
         let retryCount = 0;
 
         while (true) {
-            // noinspection JSUnusedGlobalSymbols for checkServerIdentity
-            let res = await fetch(mappingResult.url, {
-                // > This option allows avoiding SSL certificate check.
+            try {
+                let res: CrawlerFetchResponse;
 
-                // @ts-ignore
-                rejectUnauthorized: false,
-
-                requestCert: false,
-
-                tls: {
-                    rejectUnauthorized: false,
-                    checkServerIdentity: () => { return undefined }
-                },
-
-                // Allow avoiding automatic redirections.
-                // @ts-ignore
-                redirect: 'manual',
-            });
-
-            if (res.status !== 200) {
-                if (res.status >= 300 && res.status < 400) {
-                    const location = res.headers.get("Location");
-                    if (location) this.pushUrl(location);
-                    return sendSignal(ProcessUrlResult.REDIRECTED);
-                } else {
-                    let canContinue = false;
-
-                    if (this.options.onInvalidResponseCodeFound) {
-                        let what = this.options.onInvalidResponseCodeFound(sourceUrl, retryCount, res);
-                        if (what instanceof Promise) what = await what;
-                        canContinue = what;
-                    } else if (retryCount<3) {
-                        // Retry 3 times, with a longer pause each time.
-                        await tick(1000 * retryCount);
-                        canContinue = true;
-                    }
-
-                    if (!canContinue) {
-                        console.log(TERM.colorize(TERM.B_RED, `!!! Can't! fetch url: ${sourceUrl} (${res.status})`));
-                        return sendSignal(ProcessUrlResult.ERROR);
-                    }
-
-                    retryCount++;
-
-                    // Will retry automatically.
-                    continue;
+                if (this.options.doFetch) {
+                    res = await this.options.doFetch(this, mappingResult.url, requestedByUrl);
                 }
-            }
+                else {
+                    // noinspection JSUnusedGlobalSymbols
+                    res = await fetch(mappingResult.url, {
+                        // > This option allows avoiding SSL certificate check.
 
-            if (retryCount!==0) {
-                console.log(TERM.colorize(TERM.C_GREEN, "Url is now ok after ", TERM.C_RED, retryCount.toString(), " retry", TERM.C_BLUE, sourceUrl));
-            }
+                        // @ts-ignore
+                        rejectUnauthorized: false,
 
-            const contentType = res.headers.get("content-type");
+                        requestCert: false,
 
-            if (contentType) {
-                if (contentType.startsWith("text/html")) {
-                    let html = await res.text();
+                        tls: {
+                            rejectUnauthorized: false,
+                            checkServerIdentity: () => { return undefined }
+                        },
 
-                    if (this.options.rewriteHtmlBeforeProcessing) {
-                        let res = this.options.rewriteHtmlBeforeProcessing(html, sourceUrl.substring(this.newWebSite_basePath.length), mappingResult.url);
-                        if (res instanceof Promise) res = await res;
-                        html = res;
-                    }
+                        // Allow avoiding automatic redirections.
+                        // @ts-ignore
+                        redirect: 'manual',
 
-                    html = await this.processHtml(html);
+                        headers: {
+                            "referer": requestedByUrl
+                        }
 
-                    if (this.options.rewriteHtmlBeforeStoring) {
-                        let res = this.options.rewriteHtmlBeforeStoring(html, sourceUrl.substring(this.newWebSite_basePath.length), mappingResult.url);
-                        if (res instanceof Promise) res = await res;
-                        html = res;
-                    }
-
-                    res = new Response(html, {status: 200, headers: res.headers});
-                } else if (contentType.startsWith("text/css")) {
-                    const content = await res.text();
-                    const cssUrls = parseCssUrls(content) as string[];
-
-                    if (cssUrls.length) {
-                        cssUrls.forEach(u => {
-                            const cleanedUrl = this.cleanUpCssUrl(u, sourceUrl);
-                            if (cleanedUrl) this.pushUrl(cleanedUrl);
-                        });
-                    }
-
-                    res = new Response(content, {status: 200, headers: res.headers});
+                        //verbose: true
+                    });
                 }
-            }
 
-            if (this.cache) {
-                await this.cache.addToCache(transformedUrl, res, requestedByUrl);
-            }
+                if (res.status !== 200) {
+                    if (res.status >= 300 && res.status < 400) {
+                        const location = res.headers.get("Location");
+                        if (location) this.pushUrl(location);
+                        return sendSignal(ProcessUrlResult.REDIRECTED);
+                    } else {
+                        let canContinue = false;
 
-            return sendSignal(ProcessUrlResult.OK);
+                        if (this.options.onInvalidResponseCodeFound) {
+                            let what = this.options.onInvalidResponseCodeFound(sourceUrl, retryCount, res);
+                            if (what instanceof Promise) what = await what;
+                            canContinue = what;
+                        } else if (retryCount < 3) {
+                            // Retry 3 times, with a longer pause each time.
+                            await tick(1000 * retryCount);
+                            canContinue = true;
+                        }
+
+                        if (!canContinue) {
+                            return sendSignal(ProcessUrlResult.ERROR);
+                        }
+
+                        retryCount++;
+
+                        // Will retry automatically.
+                        continue;
+                    }
+                }
+
+                const contentType = res.headers.get("content-type");
+
+                if (contentType) {
+                    if (contentType.startsWith("text/html")) {
+                        let html = await res.text();
+
+                        if (this.options.rewriteHtmlBeforeProcessing) {
+                            let res = this.options.rewriteHtmlBeforeProcessing(html, sourceUrl.substring(this.newWebSite_basePath.length), mappingResult.url);
+                            if (res instanceof Promise) res = await res;
+                            html = res;
+                        }
+
+                        html = await this.processHtml(html);
+
+                        if (this.options.rewriteHtmlBeforeStoring) {
+                            let res = this.options.rewriteHtmlBeforeStoring(html, sourceUrl.substring(this.newWebSite_basePath.length), mappingResult.url);
+                            if (res instanceof Promise) res = await res;
+                            html = res;
+                        }
+
+                        res = new Response(html, {status: 200, headers: res.headers});
+                    } else if (contentType.startsWith("text/css")) {
+                        const content = await res.text();
+                        const cssUrls = parseCssUrls(content) as string[];
+
+                        if (cssUrls.length) {
+                            cssUrls.forEach(u => {
+                                const cleanedUrl = this.cleanUpCssUrl(u, sourceUrl);
+                                if (cleanedUrl) this.pushUrl(cleanedUrl);
+                            });
+                        }
+
+                        res = new Response(content, {status: 200, headers: res.headers});
+                    }
+                }
+
+                if (this.cache) {
+                    let hRes = new Response(res.body, {status: res.status, headers: res.headers});
+                    await this.cache.addToCache(transformedUrl, hRes, requestedByUrl);
+                }
+
+                return sendSignal(ProcessUrlResult.OK);
+            }
+            catch (e: any) {
+                debugger;
+                console.error("Crawler - Error while fetching:", sourceUrl);
+                console.error("|--> Message:", NodeSpace.getErrorMessage(e));
+
+                return sendSignal(ProcessUrlResult.ERROR);
+            }
         }
     }
 
@@ -679,6 +702,6 @@ function resolveRelativeUrl(url: string, baseUrl: URL): string {
 }
 
 const gExtensionForResourceType = [
-    ".css", ".js", ".jpg", ".png", ".jpeg", ".gif",
-    ".woff", ".woff2", ".ttf", ".txt", ".avif"
+    ".css", ".js", ".jpg", ".png", ".jpeg", ".gif", ".svg", ".webp",
+    ".woff", ".woff2", ".ttf", ".txt", ".avif", ".ico"
 ];
