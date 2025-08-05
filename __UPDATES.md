@@ -6,3 +6,6 @@
 
 **2025-08-03**
 * Allow using our own fetch engine.
+
+**2025-08-05**
+* Npm to version 1.0.2
