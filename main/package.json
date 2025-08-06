@@ -13,7 +13,8 @@
   "scripts": {
     "tsc-noEmit": "tsc --noemit",
     "npm-publish": "npm publish --access public",
-    "bun link": "bun link"
+    "bun link": "bun link",
+    "bun unlink": "bun unlink"
   },
   "devDependencies": {
     "@types/bun": "^1.2.13"

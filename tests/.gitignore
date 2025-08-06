@@ -1,0 +1,7 @@
+node_modules
+dist
+logs
+temp
+*.js
+*.map
+*.d.ts
