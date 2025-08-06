@@ -22,6 +22,6 @@
   "dependencies": {
     "rou3": "latest",
     "css-url-parser": "^1.1.4",
-    "jopi-node-space": "latest"
+    "jopi-node-space": "workspace:*"
   }
 }
