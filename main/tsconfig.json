@@ -1,6 +1,10 @@
 {
   "compilerOptions": {
-    "noEmit": true,
+    "sourceMap": true,
+    "declaration": true,
+
+    "outDir": "./dist",
+    "rootDir": "./src",
 
     // Permet d'avoir des fonctions comme fetch.
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
@@ -13,17 +17,17 @@
     "forceConsistentCasingInFileNames": true,
     "strict": true,
     "skipLibCheck": true,
-    "noEmitOnError": true,
+    "noEmitOnError": false,
     "verbatimModuleSyntax": true,
-    "jsx": "react"
+    "allowJs": false
   },
+
   "include": [
-    "src/*.ts",
-    "src/*.tsx",
-    "src/**/*.ts",
-    "src/**/*.tsx"
+    "./src/*.ts"
   ],
+
   "exclude": [
-    "../node_modules"
+    "node_modules",
+    "**/*.spec.ts"
   ]
 }
