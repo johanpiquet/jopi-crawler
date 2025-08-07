@@ -1,33 +1,27 @@
 {
-  "version": "0.0.1",
-  "private": false,
-  "name": "jopi-node-switch",
+  "name": "jopi-crawler",
+  "version": "1.0.2",
   "license": "MIT",
-  "homepage": "https://github.com/johanpiquet/jopi-node-switch",
-  "keywords": [],
+  "homepage": "https://github.com/johanpiquet/jopi-crawler",
+  "keywords": ["crawler", "downloader"],
   "author": "Johan PIQUET",
-  "description": "Switch from javascript to typescript for node packages.",
-  "type": "module",
-
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-
-  "devDependencies": {
-    "@types/bun": "latest",
-    "@types/node": "latest",
-    "@types/mime-types": "latest"
+  "description": "A crawler, to download web-site",
+  "engines": {
+    "bun": "^1.2.18"
   },
-
+  "main": "src/index.ts",
   "scripts": {
-    "tsc": "tsc",
-    "bun-install": "bun install",
-    "npm-publish": "npm publish",
-
-    "start": "node dist/index.js"
+    "tsc-noEmit": "tsc --noemit",
+    "npm-publish": "npm publish --access public",
+    "bun link": "bun link",
+    "bun unlink": "bun unlink"
   },
-
-  "nodeSwitch": {
-    "node": "dist",
-    "bun": "src"
+  "devDependencies": {
+    "@types/bun": "^1.2.13"
+  },
+  "dependencies": {
+    "rou3": "latest",
+    "css-url-parser": "^1.1.4",
+    "jopi-node-space": "workspace:*"
   }
 }
