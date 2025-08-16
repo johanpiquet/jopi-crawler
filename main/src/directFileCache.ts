@@ -56,7 +56,7 @@ export class DirectFileCache implements CrawlerCache {
 
         try {
             const stat = await nsFS.getFileStat(filePath);
-            return stat.isFile();
+            return (stat!==undefined) && stat.isFile();
         }
         catch {
             return false;
