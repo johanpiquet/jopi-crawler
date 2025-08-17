@@ -1,4 +1,6 @@
 node_modules
+dist
+logs
 temp
 .DS_Store
 __TODO.txt
