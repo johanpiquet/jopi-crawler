@@ -12,8 +12,9 @@
   "main": "src/index.ts",
   "scripts": {
     "tsc": "tsc",
-    "bun-install": "bun install",
-    "bun-publish": "tsc; bun publish"
+    "bun-install": "bun install --registry http://localhost:4873/",
+    "bun-update": "bun update --registry http://localhost:4873/",
+    "bun-publish": "tsc; bun publish --registry http://localhost:4873/"
   },
   "devDependencies": {
     "@types/bun": "^1.2.13",
