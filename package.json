@@ -1,6 +1,6 @@
 {
   "name": "jopi-crawler",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "license": "MIT",
   "homepage": "https://github.com/johanpiquet/jopi-crawler",
   "keywords": ["crawler", "downloader"],
