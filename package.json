@@ -1,6 +1,6 @@
 {
   "name": "jopi-crawler",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "license": "MIT",
   "homepage": "https://github.com/johanpiquet/jopi-crawler",
   "keywords": ["crawler", "downloader"],
@@ -12,14 +12,16 @@
   "main": "src/index.ts",
   "scripts": {
     "tsc": "tsc",
-    "npm-publish": "npm publish --access public"
+    "bun-install": "bun install",
+    "bun-publish": "bun publish"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.13"
+    "@types/bun": "^1.2.13",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
-    "rou3": "latest",
+    "rou3": "^0.7.3",
     "css-url-parser": "^1.1.4",
-    "jopi-node-space": "workspace:*"
+    "jopi-node-space": "latest"
   }
 }
