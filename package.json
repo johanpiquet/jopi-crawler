@@ -13,7 +13,7 @@
   "scripts": {
     "tsc": "tsc",
     "bun-install": "bun install",
-    "bun-publish": "bun publish"
+    "bun-publish": "tsc; bun publish"
   },
   "devDependencies": {
     "@types/bun": "^1.2.13",

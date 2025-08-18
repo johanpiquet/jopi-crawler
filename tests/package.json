@@ -6,6 +6,6 @@
     "@types/bun": "^1.2.13"
   },
   "dependencies": {
-    "jopi-crawler": "workspace:*"
+    "jopi-crawler": "latest"
   }
 }
