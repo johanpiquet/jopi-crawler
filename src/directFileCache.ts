@@ -1,6 +1,6 @@
 import path from "node:path";
 import fs from "node:fs/promises";
-import type {CrawlerCache} from "./common";
+import type {CrawlerCache} from "./common.ts";
 
 const nsFS = NodeSpace.fs;
 

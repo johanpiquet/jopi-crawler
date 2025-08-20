@@ -6,17 +6,20 @@
   "keywords": ["crawler", "downloader"],
   "author": "Johan PIQUET",
   "description": "A crawler, to download web-site",
+
   "engines": {
     "bun": "^1.2.18"
   },
+
   "main": "src/index.ts",
+  "type": "module",
+
   "scripts": {
-    "tsc": "tsc",
+    "tsc": "npx tsc",
     "bun-publish": "tsc; bun publish"
   },
   "devDependencies": {
-    "@types/bun": "^1.2.13",
-    "typescript": "^5.9.2"
+    "@types/bun": "^1.2.13"
   },
   "dependencies": {
     "rou3": "^0.7.3",
