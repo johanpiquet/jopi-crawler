@@ -25,5 +25,8 @@
     "rou3": "^0.7.3",
     "css-url-parser": "^1.1.4",
     "jopi-node-space": "workspace:*"
-  }
+  },
+
+  "nodeSwitch": true,
+  "nodeSwitch-default": "node"
 }
