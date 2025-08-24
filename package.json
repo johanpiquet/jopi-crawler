@@ -17,6 +17,7 @@
   "type": "module",
 
   "scripts": {
+    "build": "npx tsgo",
     "tsc": "npx tsc",
     "bun-publish": "tsc; bun publish"
   },
