@@ -14,7 +14,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "scripts": {
-    "build": "npx tsgo",
+    "build": "npx tsc",
     "tsc": "npx tsc",
     "bun-publish": "npx tsgo; bun publish"
   },

@@ -346,11 +346,14 @@ export class WebSiteCrawler {
                 const date = Date.now();
                 const elapsed = date - now;
 
+                const cacheKey = this.cache?.getKey(transformedUrl);
+
                 this.options.onUrlProcessed({
                     sourceUrl, requestedByUrl,
                     state, retryCount,
                     transformedUrl,
                     localUrl,
+                    cacheKey,
                     urlCount: this.urlCount,
                     date, elapsed
                 });
@@ -358,6 +361,9 @@ export class WebSiteCrawler {
 
             return state;
         }
+
+        let retryCount = 0;
+        const localUrl = sourceUrl.substring(this.newWebSite_basePath.length);
 
         const now = Date.now();
         const partialUrl = sourceUrl.substring(this.newWebSite_basePath.length);
@@ -385,14 +391,11 @@ export class WebSiteCrawler {
             await mappingResult.wakeUpServer();
         }
 
-        const localUrl = sourceUrl.substring(this.newWebSite_basePath.length);
         this.urlCount++;
 
         if (this.options.pauseDuration_ms) {
             await tick(this.options.pauseDuration_ms);
         }
-
-        let retryCount = 0;
 
         while (true) {
             try {
@@ -566,6 +569,7 @@ export class WebSiteCrawler {
             node.attribs["srcset"] = newSrcset.substring(1);
         });
 
+        html = $.html();
         return html;
     }
 

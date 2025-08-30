@@ -4,6 +4,7 @@ import type {WebSiteCrawler} from "./core.ts";
 export interface CrawlerCache {
     hasInCache(url: string, requestedByUrl: string): Promise<boolean>;
     addToCache(url: string, response: Response, requestedByUrl: string): Promise<void>;
+    getKey(url: string): string;
 }
 
 export interface CrawlerTransformUrlInfos {
@@ -128,7 +129,7 @@ export interface WebSiteCrawlerOptions {
     onPageFullyDownloaded?: (url: string, state: ProcessUrlResult) => void|undefined|boolean|Promise<boolean>;
 
     /**
-     * Is called when a resource is downloaded.
+     * Is called when a resource is downloaded (.js, .css, .png, ...)
      */
     onResourceDownloaded?(url: string, state: ProcessUrlResult): void;
 
@@ -151,7 +152,7 @@ export interface WebSiteCrawlerOptions {
 
     /**
      * Is called when a URL is processed.
-     * Allow building stats.
+     * Allow building stats or listing all url found.
      */
     onUrlProcessed?(infos: UrlProcessedInfos): void;
 
@@ -191,6 +192,11 @@ export interface UrlProcessedInfos {
 
     date: number;
     elapsed: number;
+
+    /**
+     * The path inside the cache.
+     */
+    cacheKey?: string;
 }
 
 export enum ProcessUrlResult {

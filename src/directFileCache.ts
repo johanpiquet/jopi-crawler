@@ -36,6 +36,10 @@ export class DirectFileCache implements CrawlerCache {
         return fp;
     }
 
+    getKey(url: string): string {
+        return this.calcFilePath(url);
+    }
+
     async addToCache(url: string, response: Response, _requestedByUrl: string): Promise<void> {
         // We don't store 404 and others.
         if (response.status !== 200) return;
