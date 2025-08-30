@@ -90,14 +90,8 @@ export interface WebSiteCrawlerOptions {
     rewriteThisUrls?: string[];
 
     /**
-     * A list of forbidden url which must not be crawled.
-     * Ex: ["/wp-json"]
-     */
-    forbiddenUrls?: string[];
-
-    /**
      * A list of urls to scan.
-     * Allow including forgotten url (which mainly come from CSS or JavaScript).
+     * Allow including forgotten urls (which mainly come from CSS or JavaScript).
      * Ex: ["/my-style.css"].
      */
     scanThisUrls?: string[];
@@ -146,13 +140,19 @@ export interface WebSiteCrawlerOptions {
     onInvalidResponseCodeFound?: (url: string, retryCount: number, response: CrawlerFetchResponse) => boolean|Promise<boolean>;
 
     /**
-     * Allows knowing if this url can be downloaded.
+     * Is called to know if this url can be downloaded.
+     *
+     * @param url
+     *      The local url of the page (ex: /my-page).
+     * @param isResource
+     *      true is the url is pointing to a resource (.css,.png,...)
+     *      false otherwise.
      */
     canDownload?(url: string, isResource: boolean): boolean;
 
     /**
      * Is called when a URL is processed.
-     * Allow building stats or listing all url found.
+     * Allow building stats or listing all urls found.
      */
     onUrlProcessed?(infos: UrlProcessedInfos): void;
 
