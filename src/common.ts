@@ -122,6 +122,7 @@ export interface WebSiteCrawlerOptions {
 
     /**
      * Is called once a page is entirely downloaded.
+     * This means the page himself and all the links starting from this page.
      * Will allow stopping the downloading by returning false.
      */
     onPageFullyDownloaded?: (url: string, state: ProcessUrlResult) => void|undefined|boolean|Promise<boolean>;
@@ -193,7 +194,27 @@ export interface UrlProcessedInfos {
 }
 
 export enum ProcessUrlResult {
-    OK = "ok", REDIRECTED = "redirected", ERROR = "error", IGNORED = "ignored"
+    /**
+     * The resource has been downloaded.
+     */
+    OK = "ok",
+
+    /**
+     * The resource was a redirection.
+     */
+    REDIRECTED = "redirected",
+
+    /**
+     * An error occurred while processing the resource
+     * or the resources is an error page.
+     */
+    ERROR = "error",
+
+    /**
+     * The resource has been ignored.
+     * Probably because it was already downloaded.
+     */
+    IGNORED = "ignored"
 }
 
 export class UrlSortTools {
@@ -246,5 +267,3 @@ export class UrlSortTools {
     removed?: string[];
     allUrl: string[];
 }
-
-

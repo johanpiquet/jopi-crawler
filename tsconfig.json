@@ -2,6 +2,8 @@
   "compilerOptions": {
     "sourceMap": true,
     "declaration": true,
+    "incremental": true,
+    "composite": true,
 
     "outDir": "./dist",
     "rootDir": "./src",
@@ -25,10 +27,18 @@
 
   "include": [
     "./src/**/*.ts",
-    "./src/**/*.tsx"
+    "./src/**/*.tsx",
+    "./src/cheerio.d.ts"
   ],
 
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "dist",
+    "**/*.spec.ts",
+    "**/*.spec.tsx",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/.turbo",
+    "**/.cache"
   ]
 }

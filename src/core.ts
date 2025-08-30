@@ -1,5 +1,6 @@
 import {DirectFileCache} from "./directFileCache.ts";
 import {UrlMapping} from "./urlMapping.ts";
+import * as cheerio from 'cheerio';
 
 // @ts-ignore no ts definition
 import parseCssUrls from "css-url-parser";
@@ -24,7 +25,6 @@ export class WebSiteCrawler {
     private readonly requiredPrefix: string;
     private readonly requiredPrefix2: string;
 
-    private rewriter?: HTMLRewriter;
     private isStarted = false;
 
     private readonly options: WebSiteCrawlerOptions;
@@ -519,74 +519,54 @@ export class WebSiteCrawler {
         // Extract all url and rewrite them inside the html.
         // Will emit calls to addUrl for each url found.
         //
-        html = this.getRewriter().transform(html);
+        //html = this.getRewriter().transform(html);
+
+        const $ = cheerio.load(html);
+
+        $("img, script, iframe, source").each((_i, node) => {
+            let url = node.attribs["src"];
+
+            if (url) {
+                url = this.pushUrl(url);
+                if (url.length) node.attribs["src"] = this.transformFoundUrl(url);
+            }
+        });
+
+        $("a, link").each((_i, node) => {
+            let url = node.attribs["href"];
+
+            if (url) {
+                url = this.pushUrl(url);
+                if (url.length) node.attribs["href"] = this.transformFoundUrl(url);
+            }
+        });
+
+        $("img").each((_i, node) => {
+            let srcset = node.attribs["srcset"];
+            if (!srcset) return;
+
+            const parts = srcset.split(",");
+            let newSrcset = "";
+
+            parts.forEach(p => {
+                p = p.trim();
+                const idx = p.indexOf(" ");
+                if (idx === -1) return;
+
+                let url = p.substring(0, idx);
+                const size = p.substring(idx + 1);
+
+                let newUrl = this.pushUrl(url);
+                if (url.length) url = newUrl;
+
+                url = this.transformFoundUrl(url);
+                newSrcset += "," + url + " " + size;
+            });
+
+            node.attribs["srcset"] = newSrcset.substring(1);
+        });
+
         return html;
-    }
-
-    /**
-     * Return the instance of the HTMLRewriter.
-     */
-    private getRewriter(): HTMLRewriter {
-        if (this.rewriter) return this.rewriter;
-
-        const rewriter = new HTMLRewriter();
-        this.rewriter = rewriter;
-
-        // >>> Extract url and update them.
-        //     The update is only for the final document if he is saved.
-
-        rewriter.on("a, link", {
-            element: (node) => {
-                let url = node.getAttribute("href");
-
-                if (url) {
-                    url = this.pushUrl(url);
-                    if (url.length) node.setAttribute("href", this.transformFoundUrl(url));
-                }
-            }
-        });
-
-        // Source: for media.
-        rewriter.on("img, script, iframe, source", {
-            element: (node) => {
-                let url = node.getAttribute("src");
-
-                if (url) {
-                    url = this.pushUrl(url);
-                    if (url.length) node.setAttribute("src", this.transformFoundUrl(url));
-                }
-            }
-        });
-
-        // For srcset
-        rewriter.on("img", {
-            element: (node) => {
-                let srcset = node.getAttribute("srcset");
-                if (!srcset) return;
-
-                const parts = srcset.split(",");
-                let newSrcset = "";
-
-                parts.forEach(p => {
-                    p = p.trim();
-                    const idx = p.indexOf(" ");
-                    if (idx === -1) return;
-
-                    let url = p.substring(0, idx);
-                    const size = p.substring(idx + 1);
-
-                    let newUrl = this.pushUrl(url);
-                    if (url.length) url = newUrl;
-
-                    url = this.transformFoundUrl(url);
-                    newSrcset += "," + url + " " + size;
-                });
-
-                node.setAttribute("srcset", newSrcset.substring(1));
-            }
-        });
-
-        return rewriter;
     }
 
     /**
