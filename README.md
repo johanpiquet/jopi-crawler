@@ -63,9 +63,9 @@ await crawler.start();
 Now a sample showing you how to serve this website.
 
 ```typescript
-import {JopiServer, WebSite} from "jopi-crawler";
+import {getServer, WebSite} from "jopi-crawler";
 
-const server = new JopiServer();
+const server = getServer();
 const myWebSite = server.addWebsite(new WebSite("http://127.0.0.1"));
 myWebSite.onGET("/**", req => req.serveFile("./downloadedWebSite"));
 server.startServer();
