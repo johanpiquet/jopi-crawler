@@ -1,6 +1,7 @@
 import path from "node:path";
 import fs from "node:fs/promises";
 import type {CrawlerCache} from "./common.ts";
+import NodeSpace from "jopi-node-space";
 
 const nsFS = NodeSpace.fs;
 

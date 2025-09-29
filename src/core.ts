@@ -1,6 +1,7 @@
 import {DirectFileCache} from "./directFileCache.ts";
 import {UrlMapping} from "./urlMapping.ts";
 import * as cheerio from 'cheerio';
+import NodeSpace from "jopi-node-space";
 
 // @ts-ignore no ts definition
 import parseCssUrls from "css-url-parser";

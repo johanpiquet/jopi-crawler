@@ -25,7 +25,7 @@
     "@types/cheerio": "^1.0.0",
     "cheerio": "^1.1.2",
     "css-url-parser": "^1.1.4",
-    "jopi-node-space": "workspace:^0.0.20",
+    "jopi-node-space": "workspace:^",
     "rou3": "^0.7.3"
   },
   "files": [
