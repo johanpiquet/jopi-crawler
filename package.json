@@ -3,7 +3,10 @@
   "version": "1.0.16",
   "license": "MIT",
   "homepage": "https://github.com/johanpiquet/jopi-crawler",
-  "keywords": ["crawler", "downloader"],
+  "keywords": [
+    "crawler",
+    "downloader"
+  ],
   "author": "Johan PIQUET",
   "description": "A crawler, to download web-site",
   "engines": {
@@ -25,7 +28,7 @@
     "@types/cheerio": "^1.0.0",
     "cheerio": "^1.1.2",
     "css-url-parser": "^1.1.4",
-    "jopi-node-space": "workspace:^",
+    "jopi-node-space": "*",
     "rou3": "^0.7.3"
   },
   "files": [
