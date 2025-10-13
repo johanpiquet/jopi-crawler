@@ -2,8 +2,8 @@
   "compilerOptions": {
     "sourceMap": true,
     "declaration": true,
-    "incremental": true,
-    "composite": true,
+    "incremental": false,
+    "composite": false,
 
     "outDir": "./dist",
     "rootDir": "./src",
