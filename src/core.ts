@@ -1,7 +1,7 @@
 import {DirectFileCache} from "./directFileCache.ts";
 import {UrlMapping} from "./urlMapping.ts";
 import * as cheerio from 'cheerio';
-import NodeSpace from "jopi-node-space";
+import {getErrorMessage} from "jopi-node-space/ns_tools";
 
 // @ts-ignore no ts definition
 import parseCssUrls from "css-url-parser";
@@ -483,7 +483,7 @@ export class WebSiteCrawler {
             catch (e: any) {
                 debugger;
                 console.error("Crawler - Error while fetching:", sourceUrl);
-                console.error("|--> Message:", NodeSpace.getErrorMessage(e));
+                console.error("|--> Message:", getErrorMessage(e));
 
                 return sendSignal(ProcessUrlResult.ERROR);
             }
@@ -498,8 +498,6 @@ export class WebSiteCrawler {
     private async processHtml(html: string): Promise<string> {
         // Extract all url and rewrite them inside the html.
         // Will emit calls to addUrl for each url found.
-        //
-        //html = this.getRewriter().transform(html);
 
         const $ = cheerio.load(html);
 
